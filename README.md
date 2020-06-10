@@ -15,4 +15,4 @@ The dataset contains the following columns:
 
 script.Rmd contains the R code to visualise the variation between samples 1 and 2 and also normalize them though using the Synthetic DNA Ladder.
 
-script.html and script.pdf are the output of the R Markdown in HTML and PDF formats.
+script.pdf is the output of the R Markdown in PDF format.
