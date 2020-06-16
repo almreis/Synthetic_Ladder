@@ -3,7 +3,7 @@ title: Using the Synthetic Ladder to normalize and detect quantitative differenc
   between libraries
 author: "Andre Reis"
 output:
-  pdf_document: 
+  pdf_document:
     latex_engine: xelatex
   html_document: default
 ---
@@ -107,17 +107,25 @@ p2 <- ggplot(ladder[,.(Median=median(S2)),by=list(Name,S2.Expected_Abundance)],
 grid.arrange(p1,p2,nrow=1)
 
 ratio.s1 <- ladder[,.(Median=median(S1)),by=list(Name,S1.Expected_Abundance)]
-ratio.s1 <- ratio.s1[order(Name,S1.Expected_Abundance),]
-ratio.s1 <- data.table(V1=ratio.s1[setdiff(1:56,seq(1,56,4)),Median]/ratio.s1[setdiff(1:56,seq(4,56,4)),Median])
-p1 <- ggplot(ratio.s1,aes(V1))+
+ratio.s1 <- data.table(dcast(ratio.s1,Name~S1.Expected_Abundance,value.var = "Median"))
+ratio.s1[,R1:=`2`/`1`]
+ratio.s1[,R2:=`4`/`2`]
+ratio.s1[,R3:=`8`/`4`]
+ratio.s1 <- melt(ratio.s1[,.(Name,R1,R2,R3)],id.vars=c("Name"),variable.name="Variable",value.name="Ratio")
+
+p1 <- ggplot(ratio.s1,aes(Ratio))+
         geom_histogram(color="black",fill="gray")+
         scale_x_continuous(limits=c(0,4),breaks=0:4)+  
         labs(x="Ratio",y="Density")
 
 ratio.s2 <- ladder[,.(Median=median(S2)),by=list(Name,S2.Expected_Abundance)]
-ratio.s2 <- ratio.s2[order(Name,S2.Expected_Abundance),]
-ratio.s2 <- data.table(V1=ratio.s2[setdiff(1:56,seq(1,56,4)),Median]/ratio.s2[setdiff(1:56,seq(4,56,4)),Median])
-p2 <- ggplot(ratio.s2,aes(V1))+
+ratio.s2 <- data.table(dcast(ratio.s2,Name~S2.Expected_Abundance,value.var = "Median"))
+ratio.s2[,R1:=`2`/`1`]
+ratio.s2[,R2:=`4`/`2`]
+ratio.s2[,R3:=`8`/`4`]
+ratio.s2 <- melt(ratio.s2[,.(Name,R1,R2,R3)],id.vars=c("Name"),variable.name="Variable",value.name="Ratio")
+
+p2 <- ggplot(ratio.s2,aes(Ratio))+
         geom_histogram(color="black",fill="gray")+
         scale_x_continuous(limits=c(0,4),breaks=0:4)+  
         labs(x="Ratio",y="Density")
@@ -449,7 +457,8 @@ meta_all_cn[Ratio == 1,Status:=1]
 # Calculating the sensitivity and specificity associate with each method
 significance <- 0.05
 meta_all_cn[,Significance:=FALSE]
-meta_all_cn[P.value < 0.05,Significance:=TRUE]
+meta_all_cn[,P.value.adjust:=p.adjust(P.value,method="fdr")]
+meta_all_cn[P.value.adjust < 0.05,Significance:=TRUE]
 total <- meta_all_cn[,.(Total=.N),list(Method,Norm,Status)]
 stats <- meta_all_cn[,.N,list(Method,Norm,Status,Significance)]
 stats <- merge(stats,total,by=c("Method","Norm","Status"))
@@ -479,7 +488,7 @@ labels <- c('Upper Quartile','DESeq2','TMM','Quantile')
 for (norm_name in c('uqua','deseq2','tmm','normalize.quantiles')) {
   tmp <- meta_all_cn[Method==norm_name]
   tmp$Norm <- as.factor(tmp$Norm)
-  roc_plot <- ggplot(tmp,aes(d=Status,m=P.value,color=Norm))+
+  roc_plot <- ggplot(tmp,aes(d=Status,m=P.value.adjust,color=Norm))+
     geom_roc(n.cuts = 0)+
     coord_fixed()+
     geom_abline(slope=1,color="gray",linetype="dashed")+
@@ -492,7 +501,7 @@ for (norm_name in c('uqua','deseq2','tmm','normalize.quantiles')) {
   tmp$Norm <- as.factor(tmp$Norm)
   levels(tmp$Norm) <- c("Unnormalized","With ladder","Without ladder")
   tmp$Label <- paste(tmp$Norm," (",tmp$AUC,")",sep="")
-  plots[[i]] <- ggplot(tmp,aes(d=Status,m=P.value,color=Label))+
+  plots[[i]] <- ggplot(tmp,aes(d=Status,m=P.value.adjust,color=Label))+
     geom_roc(n.cuts = 0)+
     coord_fixed()+
     geom_abline(slope=1,color="gray",linetype="dashed")+
